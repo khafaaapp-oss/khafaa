@@ -4,13 +4,14 @@ import http from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import { Server as SocketIOServer } from 'socket.io';
+
 
 import { connectDB } from './config/db.js';
 import authRoutes from './routes/auth.js';
 import usersRoutes from './routes/users.js';
 import chatsRoutes from './routes/chats.js';
 import messagesRoutes from './routes/messages.js';
+import { initSockets } from './sockets/index.js';
 
 const PORT = process.env.PORT || 8000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
@@ -91,20 +92,8 @@ app.use('/api/auth', authRoutes);
 
   // 3. HTTP + Socket.io
   const httpServer = http.createServer(app);
-  const io = new SocketIOServer(httpServer, {
-    cors: {
-      origin: allowedOrigins.length ? allowedOrigins : '*',
-      credentials: true,
-    },
-    transports: ['websocket', 'polling'],
-  });
-
-  io.on('connection', (socket) => {
-    console.log('🔌 socket connected:', socket.id);
-    socket.on('disconnect', () => {
-      console.log('🔌 socket disconnected:', socket.id);
-    });
-  });
+  const io = initSockets(httpServer, allowedOrigins);
+  
 
   // 4. Listen
   httpServer.listen(PORT, () => {
