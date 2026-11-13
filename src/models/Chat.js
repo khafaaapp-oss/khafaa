@@ -44,7 +44,6 @@ const chatSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-chatSchema.index({ participants: 1 });
 
 /**
  * Builds a deterministic key for a pair of user IDs.
