@@ -1,0 +1,16 @@
+{
+  "name": "chat-app-server",
+  "version": "1.0.0",
+  "description": "Backend for the chat app (Express + Socket.io + MongoDB)",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
