@@ -9,6 +9,8 @@ import { Server as SocketIOServer } from 'socket.io';
 import { connectDB } from './config/db.js';
 import authRoutes from './routes/auth.js';
 import usersRoutes from './routes/users.js';
+import chatsRoutes from './routes/chats.js';
+import messagesRoutes from './routes/messages.js';
 
 const PORT = process.env.PORT || 8000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
@@ -57,6 +59,8 @@ async function bootstrap() {
   // Routes
 app.use('/api/auth', authRoutes);
   app.use('/api/users', usersRoutes);
+  app.use('/api/chats', chatsRoutes);
+  app.use('/api/messages', messagesRoutes);
 
   // Health check
   app.get('/health', (_req, res) => {
