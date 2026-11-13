@@ -13,6 +13,7 @@ import chatsRoutes from './routes/chats.js';
 import messagesRoutes from './routes/messages.js';
 import { initSockets } from './sockets/index.js';
 import mediaRoutes from './routes/media.js';
+import adminRoutes from './routes/admin.js';
 
 const PORT = process.env.PORT || 8000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
@@ -64,6 +65,7 @@ app.use('/api/auth', authRoutes);
   app.use('/api/chats', chatsRoutes);
   app.use('/api/messages', messagesRoutes);
   app.use('/api/media', mediaRoutes);
+  app.use('/api/admin', adminRoutes);
 
   // Health check
   app.get('/health', (_req, res) => {
