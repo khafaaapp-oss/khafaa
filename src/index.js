@@ -100,10 +100,9 @@ app.use('/api/auth', authRoutes);
   
 
   // 4. Listen
-  httpServer.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT} (${NODE_ENV})`);
-  });
-}
+  httpServer.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server running on http://0.0.0.0:${PORT} (${NODE_ENV})`);
+});
 
 bootstrap().catch((err) => {
   console.error('❌ Bootstrap failed:', err);
