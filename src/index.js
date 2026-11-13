@@ -7,6 +7,7 @@ import rateLimit from 'express-rate-limit';
 import { Server as SocketIOServer } from 'socket.io';
 
 import { connectDB } from './config/db.js';
+import authRoutes from './routes/auth.js';
 
 const PORT = process.env.PORT || 8000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
@@ -52,6 +53,8 @@ async function bootstrap() {
       legacyHeaders: false,
     })
   );
+  // Routes
+app.use('/api/auth', authRoutes);
 
   // Health check
   app.get('/health', (_req, res) => {
