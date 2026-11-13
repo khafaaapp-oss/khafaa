@@ -2,22 +2,43 @@ import mongoose from 'mongoose';
 import { Message } from '../models/Message.js';
 import { Chat } from '../models/Chat.js';
 
-/**
- * Registers chat-related socket events for a connected socket.
- */
 export function registerChatHandlers(io, socket) {
   const userId = socket.userId;
 
-  // ── Send message ──────────────────────────────────
+  // ── Send message (text or media) ──────────────────
   socket.on('message:send', async (payload, ack) => {
     try {
-      const { chatId, content, type = 'text', viewMode = 'normal', viewDuration = null, metadata = {} } = payload || {};
+      const {
+        chatId,
+        content = '',
+        type = 'text',
+        viewMode = 'normal',
+        viewDuration = null,
+        metadata = {},
+      } = payload || {};
 
       if (!chatId || !mongoose.Types.ObjectId.isValid(chatId)) {
         return ack?.({ error: 'Invalid chatId' });
       }
+
+      // Validate type
+      if (!['text', 'image', 'video', 'audio', 'file'].includes(type)) {
+        return ack?.({ error: 'Invalid message type' });
+      }
+
+      // Text requires content
       if (type === 'text' && (!content || !content.trim())) {
         return ack?.({ error: 'Message content is required' });
+      }
+
+      // Media requires content (the file path) + metadata
+      if (type !== 'text' && !content) {
+        return ack?.({ error: 'Media path is required' });
+      }
+
+      // View-once only for image/video
+      if (['once', 'timed'].includes(viewMode) && !['image', 'video'].includes(type)) {
+        return ack?.({ error: 'View-once is only available for images/videos' });
       }
 
       const chat = await Chat.findById(chatId);
@@ -33,16 +54,27 @@ export function registerChatHandlers(io, socket) {
         senderId: userId,
         receiverId,
         type,
-        content: content || '',
+        content,
         metadata,
         viewMode,
         viewDuration,
       });
 
-      // Update chat lastMessage + unread counter
+      // Update chat lastMessage + unread
+      const previewText =
+        type === 'text'
+          ? content.slice(0, 100)
+          : type === 'image'
+          ? '📷 Photo'
+          : type === 'video'
+          ? '🎥 Video'
+          : type === 'audio'
+          ? '🎤 Voice message'
+          : '📎 File';
+
       chat.lastMessage = {
         messageId: message._id,
-        preview: (content || `[${type}]`).slice(0, 100),
+        preview: previewText,
         type,
         senderId: userId,
         at: message.createdAt,
@@ -53,7 +85,6 @@ export function registerChatHandlers(io, socket) {
 
       const serialized = serializeMessage(message);
 
-      // Deliver to receiver and sender (for multi-device sync)
       io.to(`user:${receiverId}`).emit('message:new', serialized);
       io.to(`user:${userId}`).emit('message:new', serialized);
 
@@ -82,7 +113,6 @@ export function registerChatHandlers(io, socket) {
       message.readAt = new Date();
       await message.save();
 
-      // Notify the sender that their message was read
       io.to(`user:${message.senderId}`).emit('message:read_by', {
         messageId: message._id,
         readAt: message.readAt,
@@ -118,7 +148,6 @@ export function registerChatHandlers(io, socket) {
       message.deletedBy = userId;
       await message.save();
 
-      // Update chat.lastMessage if needed
       const chat = await Chat.findById(message.chatId);
       if (chat && chat.lastMessage?.messageId?.toString() === message._id.toString()) {
         const previous = await Message.findOne({
@@ -140,7 +169,6 @@ export function registerChatHandlers(io, socket) {
         await chat.save();
       }
 
-      // Silent: notify both parties to remove from UI
       const payloadOut = {
         messageId: message._id.toString(),
         chatId: message.chatId.toString(),
@@ -160,17 +188,12 @@ export function registerChatHandlers(io, socket) {
     try {
       const { chatId } = payload || {};
       if (!chatId) return;
-
       const chat = await Chat.findById(chatId);
       if (!chat) return;
       const isParticipant = chat.participants.some((p) => p.toString() === userId);
       if (!isParticipant) return;
-
       const receiverId = chat.participants.find((p) => p.toString() !== userId);
-      io.to(`user:${receiverId}`).emit('typing:start', {
-        chatId,
-        userId,
-      });
+      io.to(`user:${receiverId}`).emit('typing:start', { chatId, userId });
     } catch (err) {
       console.error('typing:start error:', err);
     }
@@ -180,24 +203,18 @@ export function registerChatHandlers(io, socket) {
     try {
       const { chatId } = payload || {};
       if (!chatId) return;
-
       const chat = await Chat.findById(chatId);
       if (!chat) return;
       const isParticipant = chat.participants.some((p) => p.toString() === userId);
       if (!isParticipant) return;
-
       const receiverId = chat.participants.find((p) => p.toString() !== userId);
-      io.to(`user:${receiverId}`).emit('typing:stop', {
-        chatId,
-        userId,
-      });
+      io.to(`user:${receiverId}`).emit('typing:stop', { chatId, userId });
     } catch (err) {
       console.error('typing:stop error:', err);
     }
   });
 }
 
-// ── Serializer (consistent with REST) ───────────────
 function serializeMessage(msg) {
   return {
     id: msg._id,
